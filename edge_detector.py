@@ -11,8 +11,11 @@ We now need to:
 '''
 import numpy as np
 import scipy.optimize
+import scipy.ndimage
 import canny_edges
+import edge_finder
 from scipy.interpolate import interp1d
+from numpy import sin, cos
 
 def circular_mask(shape, ctr, radius, inner = True):
     y, x = np.ogrid[-ctr[0]:(shape[0]-ctr[0]), -ctr[1]:(shape[1]-ctr[1])]
@@ -52,6 +55,58 @@ def interface_pol_coords(interface_img, ctr):
     return output[:, output[1,:].argsort()]
 
 
+def thickness_by_fitting(gradient_img, circle_ctr, phi_range, r_range,  
+                         int_radius, pk_sigma = 3., pk_window = 5):
+    '''
+    Use interpolation and Gaussian fitting of the derivative image
+    to measure interfacial thickness.
+
+    Inputs:
+    gradient_img: input (I use mag squared of Sobel derivatives)
+    circle_ctr: origin for polar coordinates (center of membrane)
+    phi_range: array(2): min/max azimuthal angle
+    r_range: array(2), min/max radius (pixel units)
+    int_radius: average radius of interface
+    pk_sigma: initial guess for width of gaussian peaks
+    pk_window: +/- range from max position to fit gaussian
+
+    Outputs:
+    inner_peaks, outer_peaks
+    '''
+    rs = np.arange(r_range[0], r_range[1])
+    # Follow arclength around interface in units of 1 pixel
+    dphi = 1. / int_radius 
+    phis = np.arange(phi_range[0], phi_range[1], dphi)
+    
+    interface_r = np.zeros(len(phis))
+    edge_r = np.zeros(len(phis))
+
+    for phi, counter in zip(phis, np.arange(len(phis))):
+        # Extract interpolated radial cut of gradient image at each phi
+        xi = rs * cos(phi) + circle_ctr[0]
+        yi = rs * sin(phi) + circle_ctr[1]
+        cut = scipy.ndimage.interpolation.map_coordinates(gradient_img,
+                                                          [xi, yi])
+        
+        # autodetect two strongest peaks
+        maxima_pos, maxima = edge_finder.auto_detect_2pks(rs, cut)
+        # fit gaussians
+        gaussians = edge_finder.fit_2_gaussians(rs, cut, maxima_pos, 
+                                                sigma = pk_sigma, 
+                                                window_width = pk_window)
+        gauss_ctr_radii = gaussians[:,0]
+        interface_r[counter] = gauss_ctr_radii[0]
+        edge_r[counter] = gauss_ctr_radii[1]
+        
+    interface_x = interface_r * cos(phis) + circle_ctr[0]
+    interface_y = interface_r * sin(phis) + circle_ctr[1]
+    edge_x = edge_r * cos(phis) + circle_ctr[0]
+    edge_y = edge_r * sin(phis) + circle_ctr[1]
+    thickness = edge_r - interface_r
+    return thickness, np.array([interface_x, interface_y]), \
+        np.array([edge_x, edge_y])
+                 
+
 def height_along_circ_interface(int_polar):
     r_avg = int_polar[0].mean()
     s_observed = r_avg * int_polar[1]
@@ -66,8 +121,9 @@ def height_along_circ_interface(int_polar):
     
 
 def find_edges_and_height(img, sigma, canny_thresh, crop_x_range,
-                           crop_y_range, phi_range, inner_mask_r, center_guess, 
-                           membrane_guess_r, film_thick):
+                          crop_y_range, phi_range, r_range, 
+                          inner_mask_r, center_guess, 
+                          membrane_guess_r, film_thick):
     '''
     img: target raw fluorescence image
     sigma: width of gaussian kernel for blur in Canny algorithm
@@ -80,13 +136,18 @@ def find_edges_and_height(img, sigma, canny_thresh, crop_x_range,
     membrane_guess_r: guess for membrane radius
     film_thick: approximate film thickness for masking membrane interface
     '''
-    edge_image = canny_edges.detect_canny(img, sigma = sigma, 
-                                          low_thr = canny_thresh[0], 
-                                          high_thr = canny_thresh[1])
+    edge_image, grad_image = canny_edges.detect_canny(img, sigma = sigma, 
+                                                      low_thr = canny_thresh[0],
+                                                      high_thr = 
+                                                      canny_thresh[1], 
+                                                      return_gradient = True)
     
+    def crop(img):
+        return img[crop_x_range[0]:crop_x_range[1], 
+                   crop_y_range[0]:crop_y_range[1]]
+
     # find membrane edge circle
-    edge_image_cropped = edge_image[crop_x_range[0]:crop_x_range[1],
-                                    crop_y_range[0]:crop_y_range[1]]
+    edge_image_cropped = crop(edge_image)
     inner_mask = circular_mask(edge_image_cropped.shape, center_guess, 
                                inner_mask_r)
     membrane_edge = np.logical_and(inner_mask, edge_image_cropped)
@@ -103,7 +164,15 @@ def find_edges_and_height(img, sigma, canny_thresh, crop_x_range,
     # select on phis within range
     int_polar = int_polar[:, np.logical_and(int_polar[1] > phi_range[0],
                                             int_polar[1] < phi_range[1])]
-    height = height_along_circ_interface(int_polar)
-    return membrane_edge, interface_edge, height, bestfit_circle
+    avg_int_r = int_polar[0].mean()
+
+    # new gradient fitting based measurement
+    thick, ref_interface, ref_edge = thickness_by_fitting(crop(grad_image), 
+                                                          bestfit_circle[0:2],
+                                                          phi_range, r_range, 
+                                                          avg_int_r)
+
+    return membrane_edge, interface_edge, ref_edge, ref_interface, thick, \
+        bestfit_circle
 
 

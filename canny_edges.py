@@ -43,7 +43,8 @@ def non_max_edge_supp(mag, angle):
                 edge_map[i, j] = True
     return edge_map
 
-def detect_canny(img, sigma = 1.0, low_thr = 50, high_thr = 100):
+def detect_canny(img, sigma = 1.0, low_thr = 50, high_thr = 100, 
+                 return_gradient = False):
     # gaussian smoothing
     img_smoothed = ndimage.filters.gaussian_filter(img, sigma)
     # gradient
@@ -65,7 +66,10 @@ def detect_canny(img, sigma = 1.0, low_thr = 50, high_thr = 100):
         if max(grad_mag[labels == i]) < high_thr:
             gt_lthr[labels == i] = False
 
-    return gt_lthr
+    if return_gradient:
+        return gt_lthr, grad_mag
+    else:
+        return gt_lthr
 
 
 
