@@ -12,6 +12,7 @@ integrals over phi.
 import numpy as np
 import scipy.integrate as integrate
 
+from thread_flucts import spline_integrate
 from numpy import sin, cos, arctan2, pi
 
 def coeffs_by_quadrature(points, center, r_0, kmax):
@@ -53,7 +54,7 @@ def coeffs_from_splines(spl, center, r_0, kmax):
         x, y = spl.evaluate(ui)
         phi = arctan2(y - center[1], x - center[0])
         r = np.hypot(x - center[0], y - center[1])
-        return r, phi, x, y
+        return r, phi, x - center[0], y - center[1]
 
     def make_integrand(k, mode):
         '''
@@ -76,10 +77,13 @@ def coeffs_from_splines(spl, center, r_0, kmax):
     bks = np.zeros(kmax + 1)
 
     # a_0
-    aks[0] = integrate.quad(make_integrand(0, 1), 0., 1.)[0] / (2. * pi) - 1
+    aks[0] = spline_integrate(make_integrand(0, 1), 0., 1., 
+                              spl.tck[0]) / (2. * pi) - 1
 
     for k in np.arange(1, kmax + 1):
-        aks[k] = 1. / pi * integrate.quad(make_integrand(k, 1), 0., 1.)[0]
-        bks[k] = 1. / pi * integrate.quad(make_integrand(k, 2), 0., 1.)[0]
+        aks[k] = 1. / pi * spline_integrate(make_integrand(k, 1), 0., 1., 
+                                            spl.tck[0])
+        bks[k] = 1. / pi * spline_integrate(make_integrand(k, 2), 0., 1.,
+                                            spl.tck[0])
 
     return aks, bks
