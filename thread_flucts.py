@@ -7,6 +7,31 @@ import scipy.ndimage as ndimage
 
 import edge_finder
 
+def spline_integrate(integrand, u0, u1, knot_vector):
+    '''
+    Integrate an integrand defined from a spline representation 
+    piecewise between knots.
+
+    Assume smoothness between knots such that Gaussian quadrature
+    can be applied.
+
+    knot vector: tck[0] from splprep
+    '''
+
+    # select knots between u0 and u1
+    knot_vector = np.array(knot_vector)
+    knot_selection = (knot_vector > u0) * (knot_vector < u1)
+    knots = np.concatenate((np.array([u0]),
+                            knot_vector[knot_selection],
+                            np.array([u1])))
+    n_intervals = len(knots) - 1
+
+    integral_pieces = np.array([integrate.fixed_quad(integrand,
+                                                     knots[i], knots[i+1])[0]
+                                for i in np.arange(n_intervals)])
+    return integral_pieces.sum()
+
+
 def fit_spline_to_ridge(ordered_ridge_pts, smooth):
     '''
     Inputs: 
@@ -58,9 +83,8 @@ class ParametricSpline2D:
         if np.isscalar(u_1):
             u_1 = np.array([u_1])
 
-        integral = np.array([integrate.quad(self._arclength_integrand, u_0, 
-                                            ui)[0]
-                             for ui in u_1])
+        integral = np.array([spline_integrate(self._arclength_integrand, u_0, 
+                                              ui, self.tck[0]) for ui in u_1])
         return integral
 
     def calc_total_length(self):
@@ -210,29 +234,6 @@ def spline_enclosed_area(spl):
         xprime, yprime = spl.derivative(ui)
         return 0.5 * (x*yprime - y*xprime)
 
-    return integrate.quad(integrand, 0., 1.)[0]
+    return spline_integrate(integrand, 0., 1., spl.tck[0])
 
 
-def spline_integrate(integrand, u0, u1, knot_vector):
-    '''
-    Integrate an integrand defined from a spline representation 
-    piecewise between knots.
-
-    Assume smoothness between knots such that Gaussian quadrature
-    can be applied.
-
-    knot vector: tck[0] from splprep
-    '''
-
-    # select knots between u0 and u1
-    knot_vector = np.array(knot_vector)
-    knot_selection = (knot_vector > u0) * (knot_vector < u1)
-    knots = np.concatenate((np.array([u0]),
-                            knot_vector[knot_selection],
-                            np.array([u1])))
-    n_intervals = len(knots) - 1
-
-    integral_pieces = np.array([integrate.fixed_quad(integrand,
-                                                     knots[i], knots[i+1])[0]
-                                for i in np.arange(n_intervals)])
-    return integral_pieces.sum()
