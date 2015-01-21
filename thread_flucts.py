@@ -49,6 +49,17 @@ def fit_spline_to_ridge(ordered_ridge_pts, smooth):
     return tck
 
 
+def fit_ui(val, spl, i = 0, lb = 0, ub = 1.):
+    '''
+    Given point x and ParametricSpline2D spl, find u such that
+    spl.evaluate(u)[i] = x.
+    '''
+    def root_func(u):
+        return spl.evaluate(u)[i] - val
+
+    return optimize.brentq(root_func, lb, ub)
+
+
 class ParametricSpline2D:
     def __init__(self, tck):
         self.tck = tck
@@ -139,7 +150,7 @@ def refine_ridge(intensity_img, spline, window = 5):
         cut_x = x0 + cut_range * normal[0]
         cut_y = y0 + cut_range * normal[1]
         cut = ndimage.interpolation.map_coordinates(intensity_img, 
-                                                    [cut_x, cut_y])
+                                                    [cut_x, cut_y], order = 1)
         # fit gaussian to cut
         gauss_params = edge_finder.fit_one_gaussian(cut_range, cut,
                                                     0.1, cut.max(), 
@@ -237,3 +248,20 @@ def spline_enclosed_area(spl):
     return spline_integrate(integrand, 0., 1., spl.tck[0])
 
 
+def get_tangents(refined_spl):
+    # uniformly spaced
+    if refined_spl.uniform_u is None:
+        refined_spl.uniform_arclength_u()
+
+    # x, y, ui, tx, ty, tan
+    length = len(refined_spl.uniform_u)
+    output = np.zeros((length, 6))
+    
+    for ui, ctr in zip(refined_spl.uniform_u, range(length)):
+        output[ctr, 0:2] = refined_spl.evaluate(ui)
+        output[ctr, 2] = ui
+        xder, yder = refined_spl.derivative(ui)
+        output[ctr, 3:5] = np.array([xder, yder])
+        output[ctr, 5]  = np.arctan2(yder, xder)
+
+    return output

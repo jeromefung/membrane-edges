@@ -27,6 +27,14 @@ def coeffs_by_quadrature(points, center, r_0, kmax):
 
     sorted_r = r[np.argsort(phi)]
     sorted_phi = np.sort(phi)
+    
+    # add points so that endpoints are really +/- pi. continue integrand.
+    sorted_phi = np.concatenate((np.array([-pi]),
+                                 sorted_phi,
+                                 np.array([pi])))
+    sorted_r = np.concatenate((np.array([sorted_r[0]]),
+                               sorted_r,
+                               np.array([sorted_r[-1]])))
 
     aks = np.zeros(kmax + 1)
     bks = np.zeros(kmax + 1)

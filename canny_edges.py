@@ -23,6 +23,17 @@ import numpy as np
 from numpy import pi
 from collections import deque
 
+def grad_mag_fd(image):
+    finite_diff_kernel = np.array([1., 0., -1.])
+    grad_x = ndimage.convolve1d(image, finite_diff_kernel, axis = 0)
+    grad_y = ndimage.convolve1d(image, finite_diff_kernel, axis = 1)
+    # factor of 4 keeps magnitude comparable to Sobel
+    return 4. * np.hypot(grad_x, grad_y)
+
+def grad_mag_sobel(image):
+    grad_x = ndimage.filters.sobel(image, axis = 0)
+    grad_y = ndimage.filters.sobel(image, axis = 1)
+    return np.hypot(grad_x, grad_y)
 
 def non_max_edge_supp(mag, angle):
     # bin orientations into 4 directions
@@ -200,7 +211,7 @@ def ridge_order(ridge_img, img, starting_point = None):
     return output
 
 
-
+    
 
 
 
