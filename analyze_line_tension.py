@@ -60,8 +60,8 @@ def analyze_cosines(tangents, length, n_max, px = 1, outfilebase = None):
         # pick central portion
         start_index = np.floor((len(tgt[:,-1]) - length) / 2.)
         tgt_cut = tgt[start_index : start_index + length, -1]
-        a_ns, b_ns = fourier_coefficients.fourier_coeffs(tgt_cut, 
-                                                         n_max = n_max)
+        a_ns, b_ns = fourier_coefficients.fourier_coeffs2(tgt_cut, 
+                                                          n_max = n_max)
         cos_coeffs[ctr] = a_ns
 
     var_cos = np.var(cos_coeffs, axis = 0)
