@@ -173,25 +173,16 @@ def thread_thickness(gradient_img, par_spline, cut_range, pk_sigma = 3.,
 
     cuts = []
     out_gaussians = []
+    edges_0 = []
+    edges_1 = []
 
     # loop over uniform_u
     for ui, ctr in zip(par_spline.uniform_u, range(output_length)):
         # check if ui is within cutoff range:
-        if spline_range:
+        if spline_range is not None:
             if ui > spline_range[1] or ui < spline_range[0]:
                 continue
-        
-        # check for sharp turns
-        #if ui != par_spline.uniform_u.min():
-        #    new_normal = par_spline.local_normal(ui)
-        #    print np.dot(new_normal, normal)
-        #    print ui
-        #    if np.dot(new_normal, normal) < 0.1:
-        #        break
-        #    else:
-        #        normal = par_spline.local_normal(ui)
-        #else:
-        #    normal = par_spline.local_normal(ui)
+
         normal = par_spline.local_normal(ui)
 
         # calculate cut line
@@ -202,7 +193,8 @@ def thread_thickness(gradient_img, par_spline, cut_range, pk_sigma = 3.,
         
         # extract points on cut line from gradient image
         cut = ndimage.interpolation.map_coordinates(gradient_img, 
-                                                    [x_cut, y_cut])
+                                                    [x_cut, y_cut],
+                                                    order = 1)
         cuts.append(cut)
         
         # try to catch edge situations where cut misses peak 
@@ -222,7 +214,12 @@ def thread_thickness(gradient_img, par_spline, cut_range, pk_sigma = 3.,
             thickness = gaussians[1, 0] - gaussians[0, 0]
             output[ctr] = thickness
             out_gaussians.append(gaussians)
-        except ValueError: # 2 gaussian fit fails
+            # convert cut coordinate back to image coords
+            edge_0 = gaussians[0, 0] * normal + np.array([x0, y0])
+            edge_1 = gaussians[1, 0] * normal + np.array([x0, y0])
+            edges_0.append(edge_0)
+            edges_1.append(edge_1)
+        except ValueError: # 2 gaussian fit fails, stop
             break
     
     if full_output:
@@ -230,7 +227,7 @@ def thread_thickness(gradient_img, par_spline, cut_range, pk_sigma = 3.,
         # the gaussian fit results (check goodness of fit)
         return output, cuts, out_gaussians
     else:
-        return output
+        return output, np.array(edges_0), np.array(edges_1)
 
 
 

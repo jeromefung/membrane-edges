@@ -76,6 +76,42 @@ def analyze_cosines(tangents, length, n_max, px = 1, outfilebase = None):
     return output
 
 
+def analyze_thickness_cosines(thicknesses, length, n_max, px = 1, 
+                              outfilebase = None):
+    '''
+    tangents: array of tangent angles, angle being tgt[:, -1]
+    length: length of segment to fourier analyze (in pixels)
+    n_max: maximum (integer) fourier mode
+    px: conversion between pixels and length (eg. microns per pixel)
+    outfilebase: file names for output
+
+    Output: <a_q^2> in units of px
+    '''
+    length_dim = length * px
+    n_images = len(thicknesses)
+    
+    cos_coeffs = np.zeros((n_images, n_max + 1))
+    
+    for thick, ctr in zip(thicknesses, np.arange(n_images)):
+        # pick central portion
+        start_index = np.floor((len(thick) - length) / 2.)
+        thick_cut = thick[start_index : start_index + length]
+        a_ns, b_ns = fourier_coefficients.fourier_coeffs2(thick_cut, 
+                                                          n_max = n_max)
+        cos_coeffs[ctr] = a_ns
+
+    var_cos = np.var(cos_coeffs, axis = 0)
+    var_cos_dim = var_cos * length_dim / 2.
+    q_dim = np.arange(n_max + 1) *  np.pi / length_dim
+
+    output = np.vstack((q_dim, var_cos_dim))
+    if outfilebase:
+        np.save(outfilebase + '_var_cos.npy', output)
+        np.save(outfilebase + '_cos_coeffs.npy', cos_coeffs)
+
+    return output
+
+
 
 
 
