@@ -88,3 +88,37 @@ def get_tangents(refined_spl):
         output[ctr, 5]  = np.arctan2(yder, xder)
 
     return output
+
+
+def sort_layer_edge_pts(edge, membrane_rad_guess, min_gap_size = 4.):
+    '''
+    Take edge image Canny-detected for a wetting edge. Sort into
+    membrane edge vs. layer inner edge.
+
+    Method: fit a circle to all the edge points. This doesn't do very
+    well at getting a circle where all membrane edge points are outside
+    and all inner edge points are inside. However, calculating distances
+    from fitted center does provide a means of sorting.
+    '''
+
+    xpts, ypts = np.where(edge)
+    # fit circle
+    circ_params = edge_detector.fit_circ_to_edge(edge,
+                                                 [xpts.mean(), ypts.mean()],
+                                                 membrane_rad_guess)
+    dists_from_center = np.hypot(xpts - circ_params[0], ypts - circ_params[1])
+    sorted_dists = np.sort(dists_from_center)
+
+    # find gaps
+    gaps = (np.roll(sorted_dists, -1) - sorted_dists)[:-1]
+    
+    if gaps.max() > min_gap_size:
+        split_point = sorted_dists[gaps.argmax() : gaps.argmax() + 2].mean()
+        outer_x = xpts[dists_from_center > split_point]
+        outer_y = ypts[dists_from_center > split_point]
+        inner_x = xpts[dists_from_center < split_point]
+        inner_y = ypts[dists_from_center < split_point]
+        return np.array([outer_x, outer_y]), np.array([inner_x, inner_y])
+    else:
+        raise RuntimeError('Biggest gap in distance array too small')
+                                                 
