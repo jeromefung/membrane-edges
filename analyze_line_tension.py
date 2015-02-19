@@ -60,13 +60,13 @@ def analyze_cosines(tangents, length, n_max, px = 1, outfilebase = None):
         # pick central portion
         start_index = np.floor((len(tgt[:,-1]) - length) / 2.)
         tgt_cut = tgt[start_index : start_index + length, -1]
-        a_ns, b_ns = fourier_coefficients.fourier_coeffs2(tgt_cut, 
-                                                          n_max = n_max)
+        a_ns = fourier_coefficients.fourier_coeffs2(tgt_cut, n_max = n_max)
         cos_coeffs[ctr] = a_ns
 
     var_cos = np.var(cos_coeffs, axis = 0)
     var_cos_dim = var_cos * length_dim / 2.
-    q_dim = np.arange(n_max + 1) * 2. * np.pi / length_dim
+    # q = n pi / L in cosine only/even formulation
+    q_dim = np.arange(n_max + 1) * np.pi / length_dim
 
     output = np.vstack((q_dim, var_cos_dim))
     if outfilebase:
@@ -96,12 +96,12 @@ def analyze_thickness_cosines(thicknesses, length, n_max, px = 1,
         # pick central portion
         start_index = np.floor((len(thick) - length) / 2.)
         thick_cut = thick[start_index : start_index + length]
-        a_ns, b_ns = fourier_coefficients.fourier_coeffs2(thick_cut, 
+        a_ns = fourier_coefficients.fourier_coeffs2(thick_cut, 
                                                           n_max = n_max)
-        cos_coeffs[ctr] = a_ns
+        cos_coeffs[ctr] = a_ns # these a_ns have dimensions of length
 
-    var_cos = np.var(cos_coeffs, axis = 0)
-    var_cos_dim = var_cos * length_dim / 2.
+    var_cos = np.var(cos_coeffs, axis = 0) 
+    var_cos_dim = var_cos * px**2 # convert from pixel units 
     q_dim = np.arange(n_max + 1) *  np.pi / length_dim
 
     output = np.vstack((q_dim, var_cos_dim))
