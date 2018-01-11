@@ -13,7 +13,7 @@ from numpy import arange, sin, cos, pi, floor
 from scipy.integrate import simps
 
 def coeffs_n(y, n, x = None):
-    if x == None:
+    if x is None:
         x = arange(len(y))
     L = x[-1] - x[0]
     cos_terms = cos(n * 2. * pi * x / L)
@@ -26,7 +26,7 @@ def coeffs_n(y, n, x = None):
 def coeffs_n2(y, n, x = None):
     # take convention of evenness, periodicity -L to L but symmetry assumed
     # therefore there are only cosine terms
-    if x == None:
+    if x is None:
         x = arange(len(y))
     L = x[-1] - x[0]
     cos_terms = cos(n * pi * x / L) # change definition of q vs coeffs_n
@@ -39,9 +39,9 @@ def fourier_coeffs(y, x = None, n_max = None):
     '''
     output from n = 0
     '''
-    if x == None:
+    if x is None:
         x = arange(len(y))
-    if n_max == None:
+    if n_max is None:
         n_max = floor(len(y)/2)
     coeffs = np.array([coeffs_n(y, n, x) for n in arange(n_max + 1)])
     a_ns = coeffs[:,0]
@@ -55,9 +55,9 @@ def fourier_coeffs2(y, x = None, n_max = None):
     '''
     output from n = 0
     '''
-    if x == None:
+    if x is None:
         x = arange(len(y))
-    if n_max == None:
+    if n_max is None:
         n_max = floor(len(y)/2)
     a_ns = np.array([coeffs_n2(y, n, x) for n in arange(n_max + 1)])
     # fix factor of 2 in a_0
