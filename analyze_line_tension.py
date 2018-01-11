@@ -58,7 +58,7 @@ def analyze_cosines(tangents, length, n_max, px = 1, outfilebase = None):
     
     for tgt, ctr in zip(tangents, np.arange(n_images)):
         # pick central portion
-        start_index = np.floor((len(tgt[:,-1]) - length) / 2.)
+        start_index = int(np.floor((len(tgt[:,-1]) - length) / 2.))
         tgt_cut = tgt[start_index : start_index + length, -1]
         a_ns = fourier_coefficients.fourier_coeffs2(tgt_cut, n_max = n_max)
         cos_coeffs[ctr] = a_ns
